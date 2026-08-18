@@ -94,31 +94,34 @@ export default async function handler(req, res) {
 
   try {
     if (playlistId) {
-      // ESLATMA: quyidagi endpoint nomi RapidAPI docs asosida taxminiy
-      // yozilgan (men live chaqira olmayman). Agar 404/xato qaytarsa,
-      // RapidAPI console > "youtube-media-downloader" > Endpoints bo'limidan
-      // to'g'ri playlist path'ini topib, shu yerga almashtir.
+      // Tasdiqlangan endpoint: /v2/playlist/videos, parametr: playlistId.
+      // Haqiqiy javob strukturasi: { items: [ { type, id, title, lengthText, thumbnails: [...] } ] }
+      // "videos" emas — "items". Playlist sarlavhasi bu endpoint javobida yo'q,
+      // shuning uchun umumiy "Playlist" deb qo'yamiz.
       const { ok, status, data } = await callRapidApi(
         `/v2/playlist/videos?playlistId=${playlistId}`,
         apiKey
       );
       if (!ok) {
         return res.status(status).json({
-          error: `Playlist olishda xatolik (${status}). Endpoint path'ini RapidAPI docs'idan tekshiring.`,
+          error: `Playlist olishda xatolik (${status})`,
         });
       }
-      if (!data.videos || !data.videos.length) {
+      if (!data.items || !data.items.length) {
         return res.status(404).json({ error: "Playlist bo'sh yoki topilmadi" });
       }
 
       const result = {
         type: "playlist",
-        title: data.title || "Playlist",
-        videos: data.videos.map((v) => ({
-          id: v.id,
-          title: v.title,
-          thumbnail: v.thumbnails ? v.thumbnails[0]?.url : null,
-        })),
+        title: "Playlist",
+        videos: data.items
+          .filter((v) => v.type === "video")
+          .map((v) => ({
+            id: v.id,
+            title: v.title,
+            duration: v.lengthText || null,
+            thumbnail: v.thumbnails ? v.thumbnails[0]?.url : null,
+          })),
       };
       setCache(cacheKey, result);
       return res.status(200).json(result);
