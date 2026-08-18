@@ -515,7 +515,7 @@ function renderPlaylist(data) {
       row.appendChild(img);
     }
     const span = document.createElement("span");
-    span.textContent = v.title;
+    span.textContent = v.duration ? `${v.title} (${v.duration})` : v.title;
     row.appendChild(span);
     row.onclick = () => {
       urlInput.value = `https://youtube.com/watch?v=${v.id}`;
