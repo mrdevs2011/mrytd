@@ -223,6 +223,40 @@
   .quality-item:hover { border-color: var(--primary); }
   .quality-item .ext { color: var(--muted); font-weight: 400; }
 
+  .progress-wrap {
+    margin-top: 12px;
+  }
+  .progress-track {
+    width: 100%;
+    height: 8px;
+    background: var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--primary);
+    border-radius: 999px;
+    transition: width 0.25s ease;
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .progress-current {
+    font-size: 12px;
+    color: var(--text);
+    margin-top: 8px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .playlist-header {
     font-size: 14px;
     font-weight: 600;
@@ -256,14 +290,6 @@
     text-overflow: ellipsis;
   }
   .history-item:hover { background: var(--primary-light); color: var(--primary-dark); }
-
-  .batch-progress {
-    font-size: 13px;
-    color: var(--primary-dark);
-    font-weight: 600;
-    margin-bottom: 10px;
-    padding: 0 4px;
-  }
 
   @media (max-width: 380px) {
     .input-row { flex-direction: column; }
@@ -523,7 +549,84 @@ function renderPlaylist(data) {
     };
     card.appendChild(row);
   });
+
+  const downloadAllBtn = document.createElement("button");
+  downloadAllBtn.className = "primary";
+  downloadAllBtn.style.width = "100%";
+  downloadAllBtn.style.marginTop = "14px";
+  downloadAllBtn.textContent = `Barchasini yuklab olish (${data.videos.length})`;
+  card.appendChild(downloadAllBtn);
+
+  const progressWrap = document.createElement("div");
+  progressWrap.className = "progress-wrap";
+  progressWrap.style.display = "none";
+  progressWrap.innerHTML = `
+    <div class="progress-track"><div class="progress-fill"></div></div>
+    <div class="progress-label"><span class="progress-count">0/${data.videos.length}</span><span class="progress-pct">0%</span></div>
+    <div class="progress-current"></div>
+  `;
+  card.appendChild(progressWrap);
+
+  downloadAllBtn.onclick = () => downloadAllPlaylist(data.videos, downloadAllBtn, progressWrap);
+
+  const note = document.createElement("div");
+  note.style.fontSize = "11.5px";
+  note.style.color = "var(--muted)";
+  note.style.marginTop = "8px";
+  note.textContent = "Har bir video birma-bir, brauzeringiz orqali yuklanadi (ZIP emas). Brauzer bir nechta faylni birdan yuklashga ruxsat so'rashi mumkin.";
+  card.appendChild(note);
+
   resultDiv.appendChild(card);
+}
+
+// ---------- Playlist: hammasini birma-bir yuklab olish (real progress bilan) ----------
+async function downloadAllPlaylist(videos, btn, progressWrap) {
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = "Yuklanmoqda...";
+
+  progressWrap.style.display = "block";
+  const fill = progressWrap.querySelector(".progress-fill");
+  const countLabel = progressWrap.querySelector(".progress-count");
+  const pctLabel = progressWrap.querySelector(".progress-pct");
+  const currentLabel = progressWrap.querySelector(".progress-current");
+
+  let successCount = 0;
+
+  for (let i = 0; i < videos.length; i++) {
+    currentLabel.textContent = `⬇ ${videos[i].title}`;
+    const videoUrl = `https://youtube.com/watch?v=${videos[i].id}`;
+    try {
+      const response = await fetch(`/api/video?url=${encodeURIComponent(videoUrl)}`);
+      const data = await response.json();
+      if (response.ok && data.items && data.items.length) {
+        const best = data.items.find((it) => it.extension !== "mp3") || data.items[0];
+        const a = document.createElement("a");
+        a.href = best.url;
+        a.download = `${data.title || videos[i].id}.${best.extension || "mp4"}`;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        successCount++;
+      }
+    } catch (e) {
+      console.error(`${videos[i].id} yuklanmadi:`, e);
+    }
+
+    // Real progress: har video tugagach darhol yangilanadi
+    const percent = Math.round(((i + 1) / videos.length) * 100);
+    fill.style.width = `${percent}%`;
+    countLabel.textContent = `${i + 1}/${videos.length}`;
+    pctLabel.textContent = `${percent}%`;
+
+    await new Promise((r) => setTimeout(r, 1200));
+  }
+
+  currentLabel.textContent = `✓ Tugadi — ${successCount}/${videos.length} muvaffaqiyatli`;
+  btn.textContent = originalText;
+  btn.disabled = false;
 }
 
 async function handleBatch() {
@@ -532,12 +635,19 @@ async function handleBatch() {
 
   batchBtn.disabled = true;
   resultDiv.innerHTML = "";
-  const progress = document.createElement("div");
-  progress.className = "batch-progress";
-  resultDiv.appendChild(progress);
+
+  const progressWrap = document.createElement("div");
+  progressWrap.className = "progress-wrap";
+  progressWrap.innerHTML = `
+    <div class="progress-track"><div class="progress-fill"></div></div>
+    <div class="progress-label"><span class="progress-count">0/${urls.length}</span><span class="progress-pct">0%</span></div>
+  `;
+  resultDiv.appendChild(progressWrap);
+  const fill = progressWrap.querySelector(".progress-fill");
+  const countLabel = progressWrap.querySelector(".progress-count");
+  const pctLabel = progressWrap.querySelector(".progress-pct");
 
   for (let i = 0; i < urls.length; i++) {
-    progress.textContent = `Yuklanmoqda: ${i + 1}/${urls.length}`;
     try {
       const response = await fetch(`/api/video?url=${encodeURIComponent(urls[i])}`);
       const data = await response.json();
@@ -569,9 +679,14 @@ async function handleBatch() {
       err.textContent = `${urls[i]}: tarmoq xatoligi`;
       resultDiv.appendChild(err);
     }
+
+    const percent = Math.round(((i + 1) / urls.length) * 100);
+    fill.style.width = `${percent}%`;
+    countLabel.textContent = `${i + 1}/${urls.length}`;
+    pctLabel.textContent = `${percent}%`;
+
     await new Promise((r) => setTimeout(r, 800));
   }
-  progress.textContent = `Tugadi: ${urls.length}/${urls.length}`;
   batchBtn.disabled = false;
 }
 </script>
