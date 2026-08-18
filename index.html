@@ -3,200 +3,299 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YT Downloader</title>
+<title>Video Yuklab Olish</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --primary: #4FA9FF;
+    --primary-dark: #2E8FE8;
+    --primary-light: #EAF4FF;
+    --bg: #F6FAFF;
+    --card: #FFFFFF;
+    --text: #1E293B;
+    --muted: #7C8CA3;
+    --border: #E4EEFA;
+    --error: #E85D5D;
+    --error-bg: #FDEDED;
+    --radius: 16px;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
-    background: #0a0a0a;
-    background-image:
-      linear-gradient(rgba(74,222,128,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(74,222,128,0.04) 1px, transparent 1px);
-    background-size: 24px 24px;
-    color: #d4d4d4;
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
     min-height: 100vh;
-    padding: 32px 16px;
+    display: flex;
+    justify-content: center;
+    padding: 48px 16px;
   }
-  .wrap { max-width: 640px; margin: 0 auto; }
-  h1 {
-    font-size: 1.3rem;
-    color: #4ade80;
-    margin-bottom: 4px;
-  }
-  h1::before { content: "$ "; opacity: 0.6; }
-  .subtitle { color: #666; font-size: 0.8rem; margin-bottom: 24px; }
 
-  .input-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .glow {
+    position: fixed;
+    top: -180px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 520px;
+    height: 520px;
+    background: radial-gradient(circle, rgba(79,169,255,0.25) 0%, rgba(79,169,255,0) 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { width: 100%; max-width: 480px; position: relative; z-index: 1; }
+
+  .hero { text-align: center; margin-bottom: 28px; }
+  .hero-icon {
+    width: 56px; height: 56px;
+    margin: 0 auto 16px;
+    background: var(--primary);
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 24px rgba(79,169,255,0.35);
+  }
+  .hero-icon svg { width: 26px; height: 26px; }
+  h1 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .hero p { color: var(--muted); font-size: 0.9rem; }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(30,41,59,0.06);
+  }
+
+  .input-row { display: flex; gap: 8px; }
   input[type="text"] {
     flex: 1;
-    padding: 12px 14px;
-    background: #111;
-    border: 1px solid #2a2a2a;
-    border-radius: 6px;
-    color: #eee;
+    padding: 14px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
     font-family: inherit;
-    font-size: 13px;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    transition: border-color 0.15s;
   }
-  input[type="text"]:focus { outline: none; border-color: #4ade80; }
-  button {
-    padding: 12px 18px;
-    background: #4ade80;
+  input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: #fff;
+  }
+  input[type="text"]::placeholder { color: #A8B7CC; }
+
+  button.primary {
+    padding: 14px 22px;
+    background: var(--primary);
     border: none;
-    border-radius: 6px;
-    color: #0a0a0a;
-    font-weight: 700;
+    border-radius: 12px;
+    color: #fff;
     font-family: inherit;
-    font-size: 13px;
+    font-weight: 600;
+    font-size: 14px;
     cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    white-space: nowrap;
   }
-  button:hover:not(:disabled) { background: #86efac; }
-  button:disabled { background: #333; color: #666; cursor: not-allowed; }
-  .btn-ghost {
-    background: transparent;
-    border: 1px solid #2a2a2a;
-    color: #999;
-  }
-  .btn-ghost:hover:not(:disabled) { border-color: #4ade80; color: #4ade80; }
+  button.primary:hover:not(:disabled) { background: var(--primary-dark); }
+  button.primary:active:not(:disabled) { transform: scale(0.97); }
+  button.primary:disabled { background: #C7D9EC; cursor: not-allowed; }
 
-  .paste-hint {
-    font-size: 11px;
-    color: #555;
-    margin-bottom: 20px;
-    cursor: pointer;
-    display: inline-block;
+  .helper-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
   }
-  .paste-hint:hover { color: #4ade80; }
+  .link-btn {
+    background: none; border: none; cursor: pointer;
+    font-family: inherit; font-size: 12.5px;
+    color: var(--primary-dark); font-weight: 500;
+    padding: 4px 0;
+  }
+  .link-btn:hover { text-decoration: underline; }
 
-  .batch-toggle { font-size: 11px; color: #555; margin-bottom: 12px; cursor: pointer; }
-  .batch-toggle:hover { color: #4ade80; }
   textarea {
     width: 100%;
-    min-height: 90px;
-    padding: 12px;
-    background: #111;
-    border: 1px solid #2a2a2a;
-    border-radius: 6px;
-    color: #eee;
+    min-height: 100px;
+    padding: 14px;
+    margin-top: 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
     font-family: inherit;
-    font-size: 12px;
-    margin-bottom: 8px;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
     resize: vertical;
     display: none;
   }
   textarea.show { display: block; }
+  textarea:focus { outline: none; border-color: var(--primary); background: #fff; }
 
-  /* Skeleton loader */
-  .skeleton { padding: 16px; background: #111; border-radius: 8px; margin-top: 16px; }
+  /* Skeleton */
+  .skeleton { margin-top: 16px; }
+  .skel-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: 0 4px 20px rgba(30,41,59,0.06);
+  }
   .skel-line {
-    height: 14px;
-    border-radius: 4px;
-    background: linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%);
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--border) 25%, #F0F6FC 50%, var(--border) 75%);
     background-size: 200% 100%;
-    animation: shimmer 1.4s infinite;
+    animation: shimmer 1.3s infinite;
     margin-bottom: 10px;
   }
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
   #result { margin-top: 16px; }
-  .status { color: #888; font-size: 12px; }
+
   .error {
-    color: #f87171;
-    font-size: 12px;
-    background: #1a0f0f;
-    border: 1px solid #3a1a1a;
-    padding: 10px 12px;
-    border-radius: 6px;
+    color: var(--error);
+    background: var(--error-bg);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 13.5px;
+    font-weight: 500;
   }
 
   .video-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: 0 4px 20px rgba(30,41,59,0.06);
     display: flex;
-    gap: 12px;
-    background: #111;
-    border: 1px solid #222;
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 16px;
+    gap: 14px;
+    margin-bottom: 14px;
   }
-  .video-card img { width: 120px; height: 68px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
-  .video-card .meta { min-width: 0; }
-  .video-title { font-size: 13px; color: #eee; word-break: break-word; margin-bottom: 4px; }
-  .video-duration { font-size: 11px; color: #666; }
+  .video-card img { width: 110px; height: 62px; object-fit: cover; border-radius: 10px; flex-shrink: 0; }
+  .video-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.35; }
+  .video-duration { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
-  .fmt-group-label { font-size: 11px; color: #4ade80; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .section-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    margin: 16px 4px 8px;
+  }
+
+  .audio-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px;
+    background: var(--primary);
+    border-radius: 12px;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: 0 6px 16px rgba(79,169,255,0.3);
+  }
+  .audio-btn:hover { background: var(--primary-dark); }
+
   .quality-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 12px;
-    margin-bottom: 6px;
-    background: #111;
-    border: 1px solid #222;
-    border-radius: 6px;
-    color: #d4d4d4;
+    padding: 13px 16px;
+    margin-bottom: 8px;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
     text-decoration: none;
-    font-size: 12px;
+    font-size: 13.5px;
+    color: var(--text);
+    font-weight: 500;
+    transition: border-color 0.15s;
   }
-  .quality-item:hover { border-color: #4ade80; color: #4ade80; }
-  .audio-only-btn {
-    display: block;
-    width: 100%;
-    padding: 12px;
-    margin-top: 4px;
-    background: #1a2e1a;
-    border: 1px solid #4ade80;
-    border-radius: 6px;
-    color: #4ade80;
-    text-decoration: none;
-    text-align: center;
-    font-size: 13px;
-    font-weight: 700;
-  }
-  .audio-only-btn:hover { background: #4ade80; color: #0a0a0a; }
+  .quality-item:hover { border-color: var(--primary); }
+  .quality-item .ext { color: var(--muted); font-weight: 400; }
 
-  .history { margin-top: 28px; }
-  .history-title { font-size: 11px; color: #555; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em; }
+  .playlist-header {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+  .playlist-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .playlist-item:hover { background: var(--primary-light); }
+  .playlist-item img { width: 56px; height: 32px; object-fit: cover; border-radius: 6px; }
+
+  .history { margin-top: 24px; }
+  .history-title { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 8px; padding: 0 4px; }
   .history-item {
-    font-size: 12px;
-    color: #777;
-    padding: 6px 10px;
-    background: #0f0f0f;
-    border: 1px solid #1a1a1a;
-    border-radius: 4px;
-    margin-bottom: 4px;
+    font-size: 13px;
+    color: var(--muted);
+    padding: 10px 14px;
+    background: var(--card);
+    border-radius: 10px;
+    margin-bottom: 6px;
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .history-item:hover { border-color: #333; color: #aaa; }
+  .history-item:hover { background: var(--primary-light); color: var(--primary-dark); }
 
-  .playlist-item {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    padding: 8px;
-    border-bottom: 1px solid #1a1a1a;
-    font-size: 12px;
+  .batch-progress {
+    font-size: 13px;
+    color: var(--primary-dark);
+    font-weight: 600;
+    margin-bottom: 10px;
+    padding: 0 4px;
   }
-  .playlist-item img { width: 60px; height: 34px; object-fit: cover; border-radius: 3px; }
-  .batch-progress { font-size: 11px; color: #4ade80; margin-bottom: 8px; }
+
+  @media (max-width: 380px) {
+    .input-row { flex-direction: column; }
+  }
 </style>
 </head>
 <body>
+<div class="glow"></div>
 <div class="wrap">
-  <h1>yt-downloader</h1>
-  <p class="subtitle">video / shorts / playlist link tashla</p>
 
-  <div class="input-row">
-    <input type="text" id="urlInput" placeholder="https://youtube.com/watch?v=..." autocomplete="off">
-    <button id="searchBtn" onclick="handleSearch()">Qidirish</button>
+  <div class="hero">
+    <div class="hero-icon">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 3v13m0 0l-4-4m4 4l4-4M5 20h14" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h1>Video yuklab olish</h1>
+    <p>YouTube linkini joylang, formatni tanlang</p>
   </div>
-  <span class="paste-hint" onclick="pasteFromClipboard()">📋 clipboard'dan joylash</span>
-  <div class="batch-toggle" onclick="toggleBatch()">+ bir nechta linkni birdan yuklash</div>
-  <textarea id="batchInput" placeholder="Har qatorga bitta link:
-https://youtube.com/watch?v=...
-https://youtube.com/watch?v=..."></textarea>
-  <button id="batchBtn" class="btn-ghost" style="display:none" onclick="handleBatch()">Barchasini qidirish</button>
+
+  <div class="card">
+    <div class="input-row">
+      <input type="text" id="urlInput" placeholder="youtube.com/watch?v=..." autocomplete="off">
+      <button class="primary" id="searchBtn" onclick="handleSearch()">Qidirish</button>
+    </div>
+    <div class="helper-row">
+      <button class="link-btn" onclick="pasteFromClipboard()">📋 Bufer bilan joylash</button>
+      <button class="link-btn" onclick="toggleBatch()">+ Bir nechta link</button>
+    </div>
+    <textarea id="batchInput" placeholder="Har qatorga bitta link..."></textarea>
+    <button class="primary" id="batchBtn" style="display:none; width:100%; margin-top:8px;" onclick="handleBatch()">Barchasini yuklash</button>
+  </div>
 
   <div id="result"></div>
 
@@ -204,6 +303,7 @@ https://youtube.com/watch?v=..."></textarea>
     <div class="history-title">Oxirgi qidiruvlar</div>
     <div id="historyList"></div>
   </div>
+
 </div>
 
 <script>
@@ -217,31 +317,28 @@ const historyList = document.getElementById("historyList");
 
 const HISTORY_KEY = "ytdmr_history";
 let lastRequestTime = 0;
-const RATE_LIMIT_MS = 1500; // debounce: shu vaqt ichida qayta so'rov yubormaydi
+const RATE_LIMIT_MS = 1500;
 
 urlInput.addEventListener("keydown", (e) => { if (e.key === "Enter") handleSearch(); });
 
-// ---------- Clipboard auto-paste ----------
 async function pasteFromClipboard() {
   try {
     const text = await navigator.clipboard.readText();
     if (text.includes("youtu")) {
       urlInput.value = text.trim();
     } else {
-      showError("Clipboard'da YouTube link topilmadi");
+      showError("Bufer(clipboard)da YouTube link topilmadi");
     }
   } catch (e) {
-    showError("Clipboard'ga ruxsat berilmadi (brauzer bloklagan bo'lishi mumkin)");
+    showError("Bufer(clipboard)ga ruxsat berilmadi");
   }
 }
 
-// ---------- Batch toggle ----------
 function toggleBatch() {
   batchInput.classList.toggle("show");
   batchBtn.style.display = batchInput.classList.contains("show") ? "block" : "none";
 }
 
-// ---------- Rate limit guard ----------
 function isRateLimited() {
   const now = Date.now();
   if (now - lastRequestTime < RATE_LIMIT_MS) return true;
@@ -249,7 +346,6 @@ function isRateLimited() {
   return false;
 }
 
-// ---------- History (localStorage) ----------
 function getHistory() {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
   catch { return []; }
@@ -276,7 +372,6 @@ function renderHistory() {
 }
 renderHistory();
 
-// ---------- UI helpers ----------
 function setLoading(isLoading) {
   searchBtn.disabled = isLoading;
   searchBtn.textContent = isLoading ? "..." : "Qidirish";
@@ -284,9 +379,11 @@ function setLoading(isLoading) {
 function showSkeleton() {
   resultDiv.innerHTML = `
     <div class="skeleton">
-      <div class="skel-line" style="width:60%"></div>
-      <div class="skel-line" style="width:90%"></div>
-      <div class="skel-line" style="width:40%"></div>
+      <div class="skel-card">
+        <div class="skel-line" style="width:70%"></div>
+        <div class="skel-line" style="width:45%"></div>
+        <div class="skel-line" style="width:90%; margin-top:14px;"></div>
+      </div>
     </div>`;
 }
 function showError(message) {
@@ -303,11 +400,10 @@ function formatDuration(seconds) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-// ---------- Single search ----------
 async function handleSearch() {
   const url = urlInput.value.trim();
-  if (!url) { showError("Iltimos, URL kiriting"); return; }
-  if (isRateLimited()) { showError("Juda tez-tez so'rov yuboryapsiz, biroz kuting"); return; }
+  if (!url) { showError("Iltimos, link kiriting"); return; }
+  if (isRateLimited()) { showError("Biroz kuting, keyin qayta urinib ko'ring"); return; }
 
   setLoading(true);
   showSkeleton();
@@ -328,13 +424,12 @@ async function handleSearch() {
       addToHistory(url, data.title);
     }
   } catch (err) {
-    showError("Tarmoq xatoligi: server bilan bog'lanib bo'lmadi");
+    showError("Server bilan bog'lanib bo'lmadi");
   } finally {
     setLoading(false);
   }
 }
 
-// ---------- Render single video ----------
 function renderVideo(data) {
   resultDiv.innerHTML = "";
 
@@ -346,7 +441,6 @@ function renderVideo(data) {
     card.appendChild(img);
   }
   const meta = document.createElement("div");
-  meta.className = "meta";
   const title = document.createElement("div");
   title.className = "video-title";
   title.textContent = data.title;
@@ -366,23 +460,22 @@ function renderVideo(data) {
     return;
   }
 
-  // Audio-only tez tugma (eng yuqori sifatli audio-only variant)
   const audioOnly = data.items.find((i) => i.hasAudio && (i.extension === "mp3" || i.extension === "m4a" || !i.quality));
   if (audioOnly) {
     const a = document.createElement("a");
     a.href = audioOnly.url;
     a.target = "_blank";
     a.rel = "noopener noreferrer";
-    a.className = "audio-only-btn";
-    a.textContent = "🎵 Faqat audio (MP3) yuklab olish";
+    a.className = "audio-btn";
+    a.innerHTML = "🎵&nbsp; Faqat audio yuklab olish";
     resultDiv.appendChild(a);
   }
 
   const videoItems = data.items.filter((i) => i.extension !== "mp3");
   if (videoItems.length) {
     const label = document.createElement("div");
-    label.className = "fmt-group-label";
-    label.textContent = "Video formatlar";
+    label.className = "section-label";
+    label.textContent = "VIDEO FORMATLAR";
     resultDiv.appendChild(label);
     videoItems.forEach((item) => resultDiv.appendChild(makeQualityLink(item)));
   }
@@ -397,19 +490,21 @@ function makeQualityLink(item) {
   const left = document.createElement("span");
   left.textContent = item.quality || "N/A";
   const right = document.createElement("span");
+  right.className = "ext";
   right.textContent = item.extension || "?";
   a.appendChild(left);
   a.appendChild(right);
   return a;
 }
 
-// ---------- Render playlist ----------
 function renderPlaylist(data) {
   resultDiv.innerHTML = "";
-  const label = document.createElement("div");
-  label.className = "fmt-group-label";
-  label.textContent = `Playlist: ${data.title} (${data.videos.length} ta video)`;
-  resultDiv.appendChild(label);
+  const card = document.createElement("div");
+  card.className = "card";
+  const header = document.createElement("div");
+  header.className = "playlist-header";
+  header.textContent = `${data.title} — ${data.videos.length} ta video`;
+  card.appendChild(header);
 
   data.videos.forEach((v) => {
     const row = document.createElement("div");
@@ -422,22 +517,17 @@ function renderPlaylist(data) {
     const span = document.createElement("span");
     span.textContent = v.title;
     row.appendChild(span);
-    row.style.cursor = "pointer";
     row.onclick = () => {
       urlInput.value = `https://youtube.com/watch?v=${v.id}`;
       handleSearch();
     };
-    resultDiv.appendChild(row);
+    card.appendChild(row);
   });
+  resultDiv.appendChild(card);
 }
 
-// ---------- Batch mode ----------
 async function handleBatch() {
-  const urls = batchInput.value
-    .split("\n")
-    .map((u) => u.trim())
-    .filter(Boolean);
-
+  const urls = batchInput.value.split("\n").map((u) => u.trim()).filter(Boolean);
   if (!urls.length) { showError("Hech bo'lmaganda bitta link kiriting"); return; }
 
   batchBtn.disabled = true;
@@ -455,7 +545,6 @@ async function handleBatch() {
         const card = document.createElement("div");
         card.className = "video-card";
         const meta = document.createElement("div");
-        meta.className = "meta";
         const title = document.createElement("div");
         title.className = "video-title";
         title.textContent = data.title;
@@ -469,16 +558,17 @@ async function handleBatch() {
       } else {
         const err = document.createElement("div");
         err.className = "error";
+        err.style.marginBottom = "10px";
         err.textContent = `${urls[i]}: ${data.error || "xatolik"}`;
         resultDiv.appendChild(err);
       }
     } catch (e) {
       const err = document.createElement("div");
       err.className = "error";
+      err.style.marginBottom = "10px";
       err.textContent = `${urls[i]}: tarmoq xatoligi`;
       resultDiv.appendChild(err);
     }
-    // Rate limit himoyasi: har so'rov orasida kichik pauza
     await new Promise((r) => setTimeout(r, 800));
   }
   progress.textContent = `Tugadi: ${urls.length}/${urls.length}`;
