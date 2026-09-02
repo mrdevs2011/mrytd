@@ -548,7 +548,9 @@ function renderVideo(data) {
     aiText.textContent = data.aiAnalysis;
     aiBox.appendChild(aiText);
   } else {
-    aiBox.textContent = "AI tahlil hozircha mavjud emas (GEMINI_API_KEY tekshiring yoki biroz kuting)";
+    aiBox.textContent = data.aiError
+      ? "AI xato: " + data.aiError
+      : "AI tahlil hozircha mavjud emas (GEMINI_API_KEY tekshiring)";
   }
   resultDiv.appendChild(aiBox);
 

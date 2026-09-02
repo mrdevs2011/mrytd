@@ -6,7 +6,7 @@
 // Kodga key yozmang!
 
 const API_HOST = "youtube-media-downloader.p.rapidapi.com";
-const GEMINI_MODEL = "gemini-2.0-flash"; // yoki gemini-2.5-flash
+const GEMINI_MODEL = "gemini-2.5-flash"; // YouTube video qo'llab-quvvatlaydi
 
 const cache = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 daqiqa
@@ -64,7 +64,9 @@ async function callRapidApi(path, apiKey) {
  * To'g'ridan-to'g'ri YouTube URL beriladi — model video + audioni "ko'radi".
  */
 async function analyzeWithGemini(youtubeUrl, geminiKey) {
-  if (!geminiKey) return null;
+  if (!geminiKey) {
+    return { error: "GEMINI_API_KEY o'rnatilmagan (Vercel Environment Variables)" };
+  }
 
   const prompt = `Bu YouTube videoni diqqat bilan tahlil qil.
 
@@ -86,10 +88,13 @@ Agar video juda qisqa yoki tushunarsiz bo'lsa, shuni ham yoz.`;
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": geminiKey,
+        },
         body: JSON.stringify({
           contents: [
             {
@@ -114,16 +119,24 @@ Agar video juda qisqa yoki tushunarsiz bo'lsa, shuni ham yoz.`;
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Gemini xato:", data?.error?.message || response.status);
-      return null;
+      const msg = data?.error?.message || `HTTP ${response.status}`;
+      console.error("Gemini xato:", msg);
+      return { error: msg };
     }
 
     const text =
       data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
-    return text;
+
+    if (!text) {
+      // safety block yoki bo'sh javob
+      const block = data?.candidates?.[0]?.finishReason || data?.promptFeedback?.blockReason;
+      return { error: block ? `Gemini blokladi: ${block}` : "Gemini bo'sh javob qaytardi" };
+    }
+
+    return { text };
   } catch (err) {
     console.error("Gemini so'rov xatosi:", err.message);
-    return null;
+    return { error: err.message };
   }
 }
 
@@ -233,7 +246,8 @@ export default async function handler(req, res) {
         data.videoDetails?.shortDescription ||
         data.videoDetails?.description ||
         null,
-      aiAnalysis: aiAnalysis, // Gemini tahlili
+      aiAnalysis: aiAnalysis?.text || null,
+      aiError: aiAnalysis?.error || null,
       thumbnail: data.thumbnails
         ? data.thumbnails[data.thumbnails.length - 1]?.url
         : null,
