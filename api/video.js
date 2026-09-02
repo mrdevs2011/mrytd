@@ -1,15 +1,13 @@
-// SERVER-SIDE fayl (Vercel serverless function). Bu yerda API key xavfsiz.
+// SERVER-SIDE fayl (Vercel serverless function).
 //
-// MUHIM: RAPIDAPI_KEY'ni Vercel dashboard > Settings > Environment Variables
-// ichiga qo'sh. Kodga yozma!
+// Vercel Environment Variables:
+//   RAPIDAPI_KEY  — YouTube download linklar uchun
+//   GEMINI_API_KEY — AI video tahlil uchun (Google AI Studio)
+// Kodga key yozmang!
 
 const API_HOST = "youtube-media-downloader.p.rapidapi.com";
+const GEMINI_MODEL = "gemini-2.0-flash"; // yoki gemini-2.5-flash
 
-// ODDIY IN-MEMORY CACHE haqida ogohlantirish:
-// Vercel serverless funksiyalar har safar yangi (yoki "cold") instance'da
-// ishga tushishi mumkin, shuning uchun bu cache 100% ishonchli emas —
-// ba'zan urib, ba'zan urmaydi. Bu "best effort" optimizatsiya, garantiya emas.
-// Haqiqiy production cache uchun Vercel KV yoki Redis kerak bo'ladi.
 const cache = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 daqiqa
 
@@ -34,8 +32,6 @@ function extractVideoId(url) {
     if (url.includes("youtu.be/")) return url.split("youtu.be/")[1].split(/[?&]/)[0];
     if (url.includes("watch?v=")) return url.split("watch?v=")[1].split("&")[0];
     if (url.includes("/embed/")) return url.split("/embed/")[1].split(/[?&]/)[0];
-    // m.youtube.com yoki boshqa domenlar ham watch?v= formatidan foydalanadi,
-    // yuqoridagi shart ularni ham qamrab oladi.
   } catch (e) {
     return null;
   }
@@ -63,14 +59,84 @@ async function callRapidApi(path, apiKey) {
   return { ok: response.ok, status: response.status, data };
 }
 
+/**
+ * Gemini orqali YouTube videoni tahlil qiladi.
+ * To'g'ridan-to'g'ri YouTube URL beriladi — model video + audioni "ko'radi".
+ */
+async function analyzeWithGemini(youtubeUrl, geminiKey) {
+  if (!geminiKey) return null;
+
+  const prompt = `Bu YouTube videoni diqqat bilan tahlil qil.
+
+Javobni O'ZBEK tilida, quyidagi formatda ber (markdown ishlatma, oddiy matn):
+
+XULOSA:
+(2-4 gapda video nima haqida ekanligini yoz)
+
+ASOSIY NUQTALAR:
+- (1-chi muhim nuqta)
+- (2-chi muhim nuqta)
+- (3-chi muhim nuqta)
+- (kerak bo'lsa yana)
+
+KIM UCHUN:
+(Kimga foydali bo'lishi mumkin — 1 gap)
+
+Agar video juda qisqa yoki tushunarsiz bo'lsa, shuni ham yoz.`;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: prompt },
+                {
+                  file_data: {
+                    file_uri: youtubeUrl,
+                  },
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 1024,
+          },
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Gemini xato:", data?.error?.message || response.status);
+      return null;
+    }
+
+    const text =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+    return text;
+  } catch (err) {
+    console.error("Gemini so'rov xatosi:", err.message);
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Faqat GET so'rov qabul qilinadi" });
   }
 
-  const apiKey = process.env.RAPIDAPI_KEY;
-  if (!apiKey) {
-    console.error("RAPIDAPI_KEY environment variable topilmadi!");
+  const rapidKey = process.env.RAPIDAPI_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY;
+
+  if (!rapidKey) {
+    console.error("RAPIDAPI_KEY topilmadi!");
     return res.status(500).json({ error: "Server konfiguratsiyasi xato" });
   }
 
@@ -86,6 +152,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Noto'g'ri YouTube URL" });
   }
 
+  // Cache (AI tahlil bilan birga)
   const cacheKey = playlistId ? `playlist:${playlistId}` : `video:${videoId}`;
   const cached = getFromCache(cacheKey);
   if (cached) {
@@ -93,14 +160,11 @@ export default async function handler(req, res) {
   }
 
   try {
+    // —— PLAYLIST ——
     if (playlistId) {
-      // Tasdiqlangan endpoint: /v2/playlist/videos, parametr: playlistId.
-      // Haqiqiy javob strukturasi: { items: [ { type, id, title, lengthText, thumbnails: [...] } ] }
-      // "videos" emas — "items". Playlist sarlavhasi bu endpoint javobida yo'q,
-      // shuning uchun umumiy "Playlist" deb qo'yamiz.
       const { ok, status, data } = await callRapidApi(
         `/v2/playlist/videos?playlistId=${playlistId}`,
-        apiKey
+        rapidKey
       );
       if (!ok) {
         return res.status(status).json({
@@ -127,38 +191,63 @@ export default async function handler(req, res) {
       return res.status(200).json(result);
     }
 
-    // Oddiy bitta video
-    const { ok, status, data } = await callRapidApi(
-      `/v2/video/details?videoId=${videoId}`,
-      apiKey
-    );
+    // —— BITTA VIDEO ——
+    const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+    // Parallel: download info + Gemini tahlil
+    const [rapidRes, aiAnalysis] = await Promise.all([
+      callRapidApi(`/v2/video/details?videoId=${videoId}`, rapidKey),
+      analyzeWithGemini(youtubeUrl, geminiKey),
+    ]);
+
+    const { ok, status, data } = rapidRes;
 
     if (!ok) {
       if (status === 404) {
-        return res.status(404).json({ error: "Video topilmadi (o'chirilgan yoki noto'g'ri link)" });
+        return res
+          .status(404)
+          .json({ error: "Video topilmadi (o'chirilgan yoki noto'g'ri link)" });
       }
       if (status === 403) {
-        return res.status(403).json({ error: "Video yopiq (private) yoki yosh chegarasi bor" });
+        return res
+          .status(403)
+          .json({ error: "Video yopiq (private) yoki yosh chegarasi bor" });
       }
-      return res.status(status).json({ error: `RapidAPI xatolik qaytardi: ${status}` });
+      return res
+        .status(status)
+        .json({ error: `RapidAPI xatolik qaytardi: ${status}` });
     }
 
     if (!data.videos || !data.videos.items) {
-      return res.status(404).json({ error: "Yuklab olish formatlari topilmadi" });
+      return res
+        .status(404)
+        .json({ error: "Yuklab olish formatlari topilmadi" });
     }
 
     const result = {
       type: "video",
       title: data.title,
-      thumbnail: data.thumbnails ? data.thumbnails[data.thumbnails.length - 1]?.url : null,
+      description:
+        data.description ||
+        data.shortDescription ||
+        data.videoDetails?.shortDescription ||
+        data.videoDetails?.description ||
+        null,
+      aiAnalysis: aiAnalysis, // Gemini tahlili
+      thumbnail: data.thumbnails
+        ? data.thumbnails[data.thumbnails.length - 1]?.url
+        : null,
       lengthSeconds: data.lengthSeconds || null,
+      channel: data.channelName || data.author || data.channel?.name || null,
+      viewCount: data.viewCount || data.viewCountText || null,
       items: data.videos.items.map((item) => ({
         url: item.url,
         quality: item.qualityLabel || item.quality,
         extension: item.extension,
-        hasAudio: item.hasAudio !== false, // API ba'zan bu maydonni bermaydi
+        hasAudio: item.hasAudio !== false,
       })),
     };
+
     setCache(cacheKey, result);
     return res.status(200).json(result);
   } catch (err) {

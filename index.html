@@ -180,6 +180,53 @@
   .video-card img { width: 110px; height: 62px; object-fit: cover; border-radius: 10px; flex-shrink: 0; }
   .video-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.35; }
   .video-duration { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .video-channel { font-size: 12px; color: var(--primary-dark); margin-top: 3px; font-weight: 500; }
+  .video-description {
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: var(--card);
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  .video-description.empty {
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  .ai-analysis {
+    margin-top: 12px;
+    padding: 16px;
+    background: linear-gradient(135deg, #EEF6FF 0%, #F5F0FF 100%);
+    border-radius: 12px;
+    border: 1.5px solid #D6E8FF;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .ai-analysis-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ai-analysis.empty {
+    color: var(--muted);
+    font-style: italic;
+    background: var(--card);
+    border-color: var(--border);
+  }
 
   .section-label {
     font-size: 12px;
@@ -471,15 +518,47 @@ function renderVideo(data) {
   title.className = "video-title";
   title.textContent = data.title;
   meta.appendChild(title);
+
+  if (data.channel) {
+    const ch = document.createElement("div");
+    ch.className = "video-channel";
+    ch.textContent = data.channel;
+    meta.appendChild(ch);
+  }
+
   const dur = formatDuration(data.lengthSeconds);
   if (dur) {
     const durEl = document.createElement("div");
     durEl.className = "video-duration";
-    durEl.textContent = dur;
+    durEl.textContent = dur + (data.viewCount ? ` · ${data.viewCount}` : "");
     meta.appendChild(durEl);
   }
   card.appendChild(meta);
   resultDiv.appendChild(card);
+
+  // AI tahlil (Gemini)
+  const aiBox = document.createElement("div");
+  aiBox.className = "ai-analysis" + (data.aiAnalysis ? "" : " empty");
+  if (data.aiAnalysis) {
+    const aiTitle = document.createElement("div");
+    aiTitle.className = "ai-analysis-title";
+    aiTitle.innerHTML = "✨ AI tahlil (Gemini)";
+    aiBox.appendChild(aiTitle);
+    const aiText = document.createElement("div");
+    aiText.textContent = data.aiAnalysis;
+    aiBox.appendChild(aiText);
+  } else {
+    aiBox.textContent = "AI tahlil hozircha mavjud emas (GEMINI_API_KEY tekshiring yoki biroz kuting)";
+  }
+  resultDiv.appendChild(aiBox);
+
+  // YouTube description (metadata)
+  if (data.description) {
+    const descBox = document.createElement("div");
+    descBox.className = "video-description";
+    descBox.textContent = data.description;
+    resultDiv.appendChild(descBox);
+  }
 
   if (!data.items || !data.items.length) {
     showError("Yuklab olish uchun formatlar topilmadi");
