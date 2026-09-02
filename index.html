@@ -903,10 +903,9 @@ function renderVideo(data, originalUrl) {
     const ranked = [...videoItems].sort((a, b) => {
       const qa = parseInt(String(a.quality || "0"), 10) || 0;
       const qb = parseInt(String(b.quality || "0"), 10) || 0;
-      if (qb !== qa) return qb - qa;
-      return (b.hasAudio === false ? 0 : 1) - (a.hasAudio === false ? 0 : 1);
+      return qb - qa;
     });
-    const best = ranked.find((i) => i.hasAudio !== false) || ranked[0];
+    const best = ranked[0];
     if (best) {
       const bestBtn = document.createElement("button");
       bestBtn.type = "button";
@@ -1032,12 +1031,6 @@ function makeQualityLink(item, safeTitle) {
 
   const right = document.createElement("span");
   right.className = "meta-right";
-  if (item.hasAudio === false) {
-    const badge = document.createElement("span");
-    badge.className = "badge-noaudio";
-    badge.textContent = "no audio";
-    right.appendChild(badge);
-  }
   const sz = formatSize(item.size);
   if (sz) {
     const s = document.createElement("span");
@@ -1081,9 +1074,11 @@ function forceDownload(url, filename, btn) {
     setBtnProgress(btn, "0%");
   }
 
+  // 1) Avval o'z serverimiz orqali (CORS yo'q, haqiqiy download)
   const xhr = new XMLHttpRequest();
-  xhr.open("GET", url, true);
+  xhr.open("POST", "/api/download", true);
   xhr.responseType = "blob";
+  xhr.setRequestHeader("Content-Type", "application/json");
 
   xhr.onprogress = (e) => {
     if (!btn) return;
@@ -1091,20 +1086,19 @@ function forceDownload(url, filename, btn) {
       const pct = Math.min(100, Math.round((e.loaded / e.total) * 100));
       setBtnProgress(btn, pct + "%");
     } else if (e.loaded > 0) {
-      // total noma'lum — MB ko'rsatamiz
       const mb = (e.loaded / (1024 * 1024)).toFixed(1);
       setBtnProgress(btn, mb + " MB");
     }
   };
 
   xhr.onload = () => {
-    if (xhr.status >= 200 && xhr.status < 300) {
+    if (xhr.status >= 200 && xhr.status < 300 && xhr.response && xhr.response.size > 0) {
       if (btn) setBtnProgress(btn, "100%");
       const blob = xhr.response;
       const objUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objUrl;
-      a.download = filename;
+      a.download = filename || "video.mp4";
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -1114,22 +1108,66 @@ function forceDownload(url, filename, btn) {
           btn.disabled = false;
           if (original) btn.innerHTML = original;
           downloadBusy = false;
-        }, 600);
+        }, 500);
       } else {
         downloadBusy = false;
       }
+      return;
+    }
+    // Proxy ishlamasa — to'g'ridan-to'g'ri CDN (oxirgi imkoniyat)
+    tryDirectDownload(url, filename, btn, original);
+  };
+
+  xhr.onerror = () => {
+    tryDirectDownload(url, filename, btn, original);
+  };
+
+  xhr.send(JSON.stringify({ url, filename: filename || "video.mp4" }));
+}
+
+function tryDirectDownload(url, filename, btn, original) {
+  // XHR to CDN (CORS bo'lsa)
+  const xhr = new XMLHttpRequest();
+  xhr.open("GET", url, true);
+  xhr.responseType = "blob";
+
+  xhr.onprogress = (e) => {
+    if (!btn) return;
+    if (e.lengthComputable && e.total > 0) {
+      setBtnProgress(btn, Math.min(100, Math.round((e.loaded / e.total) * 100)) + "%");
+    }
+  };
+
+  xhr.onload = () => {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      const objUrl = URL.createObjectURL(xhr.response);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = filename || "video.mp4";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objUrl), 3000);
+      finishBtn(btn, original);
     } else {
-      // HTTP xato — fallback
       fallbackOpen(url, filename, btn, original);
     }
   };
 
-  xhr.onerror = () => {
-    // CORS yoki tarmoq xatosi — fallback
-    fallbackOpen(url, filename, btn, original);
-  };
-
+  xhr.onerror = () => fallbackOpen(url, filename, btn, original);
   xhr.send();
+}
+
+function finishBtn(btn, original) {
+  if (btn) {
+    setTimeout(() => {
+      btn.disabled = false;
+      if (original) btn.innerHTML = original;
+      downloadBusy = false;
+    }, 500);
+  } else {
+    downloadBusy = false;
+  }
 }
 
 function fallbackOpen(url, filename, btn, original) {

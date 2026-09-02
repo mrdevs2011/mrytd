@@ -263,7 +263,9 @@ export default async function handler(req, res) {
         url: item.url,
         quality: item.qualityLabel || item.quality,
         extension: item.extension,
-        hasAudio: item.hasAudio !== false,
+        // Ko'p hollarda API adaptive streamlarni no-audio deb belgilaydi,
+        // lekin URL orqali yuklanganda ovoz bo'lishi mumkin. Belgini yumshatamiz.
+        hasAudio: item.hasAudio === false && item.hasVideo === true ? false : true,
         size: item.contentLength || item.size || item.filesize || item.contentLengthText || null,
       })),
     };
