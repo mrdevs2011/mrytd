@@ -228,6 +228,94 @@
     border-color: var(--border);
   }
 
+  /* Chat */
+  .chat-box {
+    margin-top: 16px;
+    background: var(--card);
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(30,41,59,0.06);
+  }
+  .chat-header {
+    padding: 12px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-dark);
+    border-bottom: 1.5px solid var(--border);
+    background: var(--primary-light);
+  }
+  .chat-messages {
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .chat-msg {
+    max-width: 88%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .chat-msg.user {
+    align-self: flex-end;
+    background: var(--primary);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .chat-msg.bot {
+    align-self: flex-start;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .chat-msg.typing {
+    color: var(--muted);
+    font-style: italic;
+  }
+  .chat-input-row {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1.5px solid var(--border);
+  }
+  .chat-input-row input {
+    flex: 1;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13.5px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .chat-input-row input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: #fff;
+  }
+  .chat-input-row button {
+    padding: 12px 16px;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .chat-input-row button:disabled {
+    background: #C7D9EC;
+    cursor: not-allowed;
+  }
+
   .section-label {
     font-size: 12px;
     font-weight: 600;
@@ -243,31 +331,39 @@
     width: 100%;
     padding: 14px;
     background: var(--primary);
+    border: none;
     border-radius: 12px;
     color: #fff;
     text-decoration: none;
+    font-family: inherit;
     font-weight: 600;
     font-size: 14px;
+    cursor: pointer;
     box-shadow: 0 6px 16px rgba(79,169,255,0.3);
   }
   .audio-btn:hover { background: var(--primary-dark); }
+  .audio-btn:disabled { opacity: 0.7; cursor: wait; }
 
   .quality-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
     padding: 13px 16px;
     margin-bottom: 8px;
     background: var(--card);
     border: 1.5px solid var(--border);
     border-radius: 12px;
     text-decoration: none;
+    font-family: inherit;
     font-size: 13.5px;
     color: var(--text);
     font-weight: 500;
-    transition: border-color 0.15s;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
   }
-  .quality-item:hover { border-color: var(--primary); }
+  .quality-item:hover { border-color: var(--primary); background: var(--primary-light); }
+  .quality-item:disabled { opacity: 0.6; cursor: wait; }
   .quality-item .ext { color: var(--muted); font-weight: 400; }
 
   .progress-wrap {
@@ -493,7 +589,7 @@ async function handleSearch() {
     if (data.type === "playlist") {
       renderPlaylist(data);
     } else {
-      renderVideo(data);
+      renderVideo(data, url);
       addToHistory(url, data.title);
     }
   } catch (err) {
@@ -503,7 +599,7 @@ async function handleSearch() {
   }
 }
 
-function renderVideo(data) {
+function renderVideo(data, originalUrl) {
   resultDiv.innerHTML = "";
 
   const card = document.createElement("div");
@@ -567,14 +663,15 @@ function renderVideo(data) {
     return;
   }
 
+  const safeTitle = (data.title || "video").replace(/[\\/:*?"<>|]/g, "").slice(0, 80);
+
   const audioOnly = data.items.find((i) => i.hasAudio && (i.extension === "mp3" || i.extension === "m4a" || !i.quality));
   if (audioOnly) {
-    const a = document.createElement("a");
-    a.href = audioOnly.url;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
+    const a = document.createElement("button");
+    a.type = "button";
     a.className = "audio-btn";
     a.innerHTML = "🎵&nbsp; Faqat audio yuklab olish";
+    a.onclick = () => forceDownload(audioOnly.url, `${safeTitle}.${audioOnly.extension || "m4a"}`, a);
     resultDiv.appendChild(a);
   }
 
@@ -584,24 +681,199 @@ function renderVideo(data) {
     label.className = "section-label";
     label.textContent = "VIDEO FORMATLAR";
     resultDiv.appendChild(label);
-    videoItems.forEach((item) => resultDiv.appendChild(makeQualityLink(item)));
+    videoItems.forEach((item) => resultDiv.appendChild(makeQualityLink(item, safeTitle)));
+  }
+
+  // Video bo'yicha suhbat
+  if (originalUrl) {
+    mountChat(originalUrl, data.aiAnalysis || null);
   }
 }
 
-function makeQualityLink(item) {
-  const a = document.createElement("a");
-  a.href = item.url;
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  a.className = "quality-item";
+function mountChat(videoUrl, initialAnalysis) {
+  const history = [];
+  if (initialAnalysis) {
+    history.push({ role: "assistant", text: initialAnalysis });
+  }
+
+  const box = document.createElement("div");
+  box.className = "chat-box";
+  box.innerHTML = `
+    <div class="chat-header">💬 Video bo'yicha suhbat</div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="Video haqida savol yozing..." autocomplete="off">
+      <button id="chatSend">Yuborish</button>
+    </div>
+  `;
+  resultDiv.appendChild(box);
+
+  const messagesEl = box.querySelector("#chatMessages");
+  const inputEl = box.querySelector("#chatInput");
+  const sendBtn = box.querySelector("#chatSend");
+
+  function addMsg(role, text) {
+    const div = document.createElement("div");
+    div.className = "chat-msg " + (role === "user" ? "user" : "bot");
+    div.textContent = text;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  if (initialAnalysis) {
+    addMsg("assistant", initialAnalysis);
+  } else {
+    addMsg("assistant", "Salom! Video haqida savol bering.");
+  }
+
+  async function send() {
+    const msg = inputEl.value.trim();
+    if (!msg) return;
+
+    inputEl.value = "";
+    sendBtn.disabled = true;
+    addMsg("user", msg);
+    history.push({ role: "user", text: msg });
+
+    const typing = document.createElement("div");
+    typing.className = "chat-msg bot typing";
+    typing.textContent = "Yozmoqda...";
+    messagesEl.appendChild(typing);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoUrl,
+          message: msg,
+          history: history.slice(0, -1), // oxirgi user xabarsiz (uni message sifatida yubordik)
+        }),
+      });
+      const data = await res.json();
+      typing.remove();
+
+      if (!res.ok) {
+        addMsg("assistant", "Xato: " + (data.error || "javob kelmadi"));
+      } else {
+        addMsg("assistant", data.reply);
+        history.push({ role: "assistant", text: data.reply });
+      }
+    } catch (e) {
+      typing.remove();
+      addMsg("assistant", "Tarmoq xatosi. Qayta urinib ko'ring.");
+    }
+
+    sendBtn.disabled = false;
+    inputEl.focus();
+  }
+
+  sendBtn.onclick = send;
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") send();
+  });
+}
+
+function makeQualityLink(item, safeTitle) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "quality-item";
   const left = document.createElement("span");
   left.textContent = item.quality || "N/A";
   const right = document.createElement("span");
   right.className = "ext";
   right.textContent = item.extension || "?";
-  a.appendChild(left);
-  a.appendChild(right);
-  return a;
+  btn.appendChild(left);
+  btn.appendChild(right);
+
+  const filename = `${safeTitle || "video"}_${item.quality || "video"}.${item.extension || "mp4"}`;
+  btn.onclick = () => forceDownload(item.url, filename, btn);
+  return btn;
+}
+
+function setBtnProgress(btn, text) {
+  if (!btn) return;
+  if (btn.classList.contains("quality-item")) {
+    const right = btn.querySelector("span:last-child");
+    if (right) right.textContent = text;
+  } else {
+    btn.textContent = text;
+  }
+}
+
+function forceDownload(url, filename, btn) {
+  if (!url) return;
+  const original = btn ? btn.innerHTML : null;
+  if (btn) {
+    btn.disabled = true;
+    setBtnProgress(btn, "0%");
+  }
+
+  const xhr = new XMLHttpRequest();
+  xhr.open("GET", url, true);
+  xhr.responseType = "blob";
+
+  xhr.onprogress = (e) => {
+    if (!btn) return;
+    if (e.lengthComputable && e.total > 0) {
+      const pct = Math.min(100, Math.round((e.loaded / e.total) * 100));
+      setBtnProgress(btn, pct + "%");
+    } else if (e.loaded > 0) {
+      // total noma'lum — MB ko'rsatamiz
+      const mb = (e.loaded / (1024 * 1024)).toFixed(1);
+      setBtnProgress(btn, mb + " MB");
+    }
+  };
+
+  xhr.onload = () => {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      if (btn) setBtnProgress(btn, "100%");
+      const blob = xhr.response;
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objUrl), 3000);
+      if (btn) {
+        setTimeout(() => {
+          btn.disabled = false;
+          if (original) btn.innerHTML = original;
+        }, 600);
+      }
+    } else {
+      // HTTP xato — fallback
+      fallbackOpen(url, filename, btn, original);
+    }
+  };
+
+  xhr.onerror = () => {
+    // CORS yoki tarmoq xatosi — fallback
+    fallbackOpen(url, filename, btn, original);
+  };
+
+  xhr.send();
+}
+
+function fallbackOpen(url, filename, btn, original) {
+  if (btn) setBtnProgress(btn, "↓");
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  if (btn) {
+    setTimeout(() => {
+      btn.disabled = false;
+      if (original) btn.innerHTML = original;
+    }, 800);
+  }
 }
 
 function renderPlaylist(data) {
