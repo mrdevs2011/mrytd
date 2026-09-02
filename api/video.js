@@ -6,7 +6,7 @@
 // Kodga key yozmang!
 
 const API_HOST = "youtube-media-downloader.p.rapidapi.com";
-const GEMINI_MODEL = "gemini-2.5-flash"; // YouTube video qo'llab-quvvatlaydi
+const GEMINI_MODEL = "gemini-3.6-flash"; // YouTube video qo'llab-quvvatlaydi
 
 const cache = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 daqiqa
