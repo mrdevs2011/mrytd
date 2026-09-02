@@ -63,28 +63,39 @@ async function callRapidApi(path, apiKey) {
  * Gemini orqali YouTube videoni tahlil qiladi.
  * To'g'ridan-to'g'ri YouTube URL beriladi — model video + audioni "ko'radi".
  */
-async function analyzeWithGemini(youtubeUrl, geminiKey) {
+async function analyzeWithGemini(youtubeUrl, geminiKey, lang = "uz", mode = "short") {
   if (!geminiKey) {
     return { error: "GEMINI_API_KEY o'rnatilmagan (Vercel Environment Variables)" };
   }
 
-  const prompt = `Bu YouTube videoni diqqat bilan tahlil qil.
-
-Javobni O'ZBEK tilida, quyidagi formatda ber (markdown ishlatma, oddiy matn):
+  const langName = lang === "ru" ? "RUS" : lang === "en" ? "INGLIZ" : "O'ZBEK";
+  const prompt = mode === "detailed"
+    ? `Bu YouTube videoni chuqur tahlil qil. Javobni ${langName} tilida, markdown ishlatmasdan oddiy matnda ber.
 
 XULOSA:
-(2-4 gapda video nima haqida ekanligini yoz)
+(4-6 gapda video mazmuni)
 
 ASOSIY NUQTALAR:
-- (1-chi muhim nuqta)
-- (2-chi muhim nuqta)
-- (3-chi muhim nuqta)
-- (kerak bo'lsa yana)
+- kamida 5 ta muhim nuqta (imkon bo'lsa vaqt belgisi bilan, masalan 2:15)
+
+MUHIM IQTIBOSLAR:
+- videodan 1-2 ta muhim gap
 
 KIM UCHUN:
-(Kimga foydali bo'lishi mumkin — 1 gap)
+(kimga foydali)
 
-Agar video juda qisqa yoki tushunarsiz bo'lsa, shuni ham yoz.`;
+XULOSA BAHOSI:
+(qisqa: foydali / o'rtacha / zaif va nima uchun)`
+    : `Bu YouTube videoni qisqa tahlil qil. Javobni ${langName} tilida, markdown ishlatmasdan oddiy matnda ber.
+
+XULOSA:
+(2-3 gap)
+
+ASOSIY NUQTALAR:
+- 3 ta muhim nuqta (imkon bo'lsa vaqt belgisi bilan)
+
+KIM UCHUN:
+(1 gap)`;
 
   try {
     const response = await fetch(
@@ -208,11 +219,7 @@ export default async function handler(req, res) {
     const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
     // Parallel: download info + Gemini tahlil
-    const [rapidRes, aiAnalysis] = await Promise.all([
-      callRapidApi(`/v2/video/details?videoId=${videoId}`, rapidKey),
-      analyzeWithGemini(youtubeUrl, geminiKey),
-    ]);
-
+    const rapidRes = await callRapidApi(`/v2/video/details?videoId=${videoId}`, rapidKey);
     const { ok, status, data } = rapidRes;
 
     if (!ok) {
@@ -246,9 +253,7 @@ export default async function handler(req, res) {
         data.videoDetails?.shortDescription ||
         data.videoDetails?.description ||
         null,
-      aiAnalysis: aiAnalysis?.text || null,
-      aiError: aiAnalysis?.error || null,
-      thumbnail: data.thumbnails
+            thumbnail: data.thumbnails
         ? data.thumbnails[data.thumbnails.length - 1]?.url
         : null,
       lengthSeconds: data.lengthSeconds || null,
@@ -259,6 +264,7 @@ export default async function handler(req, res) {
         quality: item.qualityLabel || item.quality,
         extension: item.extension,
         hasAudio: item.hasAudio !== false,
+        size: item.contentLength || item.size || item.filesize || item.contentLengthText || null,
       })),
     };
 

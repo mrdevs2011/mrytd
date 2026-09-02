@@ -22,6 +22,58 @@
     --radius: 16px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body, .card, .video-card, .quality-item, .ai-analysis, .chat-box, .best-btn, .audio-btn, .icon-btn, button, input, select, textarea {
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.2s ease, box-shadow 0.25s ease, transform 0.15s ease, opacity 0.25s ease;
+  }
+  .fade-in {
+    animation: fadeIn 0.35s ease both;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .ai-loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .ai-spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .icon-svg {
+    width: 16px; height: 16px;
+    display: inline-block;
+    vertical-align: -3px;
+  }
+  .hero-icon svg, .icon-btn svg {
+    display: block;
+  }
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ai-analysis-title {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: space-between;
+  }
+
   body {
     font-family: 'Inter', sans-serif;
     background: var(--bg);
@@ -221,6 +273,92 @@
     align-items: center;
     gap: 6px;
   }
+
+  body.dark {
+    --primary: #5BB0FF;
+    --primary-dark: #3A9AEE;
+    --primary-light: #1A2740;
+    --bg: #0F172A;
+    --card: #1E293B;
+    --text: #F1F5F9;
+    --muted: #94A3B8;
+    --border: #334155;
+    --error: #F87171;
+    --error-bg: #3F1D1D;
+  }
+  .top-bar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .icon-btn {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .opts-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .opts-row select {
+    flex: 1;
+    min-width: 120px;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .best-btn {
+    width: 100%;
+    margin-top: 12px;
+    margin-bottom: 4px;
+    padding: 14px;
+    background: linear-gradient(135deg, #4FA9FF, #7C5CFF);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(79,169,255,0.35);
+  }
+  .best-btn:disabled { opacity: 0.6; cursor: wait; }
+  .best-btn:hover:not(:disabled) { filter: brightness(1.05); }
+  .copy-btn {
+    margin-left: auto;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--primary-dark);
+    font-family: inherit;
+  }
+  .quality-item .meta-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .badge-noaudio {
+    font-size: 10px;
+    color: var(--error);
+    font-weight: 600;
+  }
+  .size-label { color: var(--muted); font-size: 12px; }
+
   .ai-analysis.empty {
     color: var(--muted);
     font-style: italic;
@@ -443,6 +581,12 @@
 <div class="glow"></div>
 <div class="wrap">
 
+  <div class="top-bar">
+    <button class="icon-btn" id="themeBtn" type="button">
+      <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z"/></svg>
+      <span id="themeLabel">Dark</span>
+    </button>
+  </div>
   <div class="hero">
     <div class="hero-icon">
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -458,8 +602,21 @@
       <input type="text" id="urlInput" placeholder="youtube.com/watch?v=..." autocomplete="off">
       <button class="primary" id="searchBtn" onclick="handleSearch()">Qidirish</button>
     </div>
+    <div class="opts-row">
+      <select id="langSelect">
+        <option value="uz">O'zbek</option>
+        <option value="ru">Русский</option>
+        <option value="en">English</option>
+      </select>
+      <select id="modeSelect">
+        <option value="short">Qisqa tahlil</option>
+        <option value="detailed">Batafsil tahlil</option>
+      </select>
+    </div>
     <div class="helper-row">
-      <button class="link-btn" onclick="pasteFromClipboard()">📋 Bufer bilan joylash</button>
+      <button class="link-btn" onclick="pasteFromClipboard()">
+        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg>
+        Bufer bilan joylash</button>
       <button class="link-btn" onclick="toggleBatch()">+ Bir nechta link</button>
     </div>
     <textarea id="batchInput" placeholder="Har qatorga bitta link..."></textarea>
@@ -481,6 +638,34 @@ const searchBtn = document.getElementById("searchBtn");
 const batchInput = document.getElementById("batchInput");
 const batchBtn = document.getElementById("batchBtn");
 const resultDiv = document.getElementById("result");
+const langSelect = document.getElementById("langSelect");
+const modeSelect = document.getElementById("modeSelect");
+const themeBtn = document.getElementById("themeBtn");
+let downloadBusy = false;
+
+// Theme
+function updateThemeLabel() {
+  const label = document.getElementById("themeLabel");
+  if (!label) return;
+  label.textContent = document.body.classList.contains("dark") ? "Light" : "Dark";
+}
+if (localStorage.getItem("theme") === "dark") {
+  document.body.classList.add("dark");
+}
+updateThemeLabel();
+if (themeBtn) {
+  themeBtn.onclick = () => {
+    document.body.classList.toggle("dark");
+    const dark = document.body.classList.contains("dark");
+    localStorage.setItem("theme", dark ? "dark" : "light");
+    updateThemeLabel();
+  };
+}
+if (langSelect) langSelect.value = localStorage.getItem("lang") || "uz";
+if (modeSelect) modeSelect.value = localStorage.getItem("mode") || "short";
+if (langSelect) langSelect.onchange = () => localStorage.setItem("lang", langSelect.value);
+if (modeSelect) modeSelect.onchange = () => localStorage.setItem("mode", modeSelect.value);
+
 const historyBox = document.getElementById("historyBox");
 const historyList = document.getElementById("historyList");
 
@@ -578,7 +763,9 @@ async function handleSearch() {
   showSkeleton();
 
   try {
-    const response = await fetch(`/api/video?url=${encodeURIComponent(url)}`);
+    const lang = (langSelect && langSelect.value) || "uz";
+    const mode = (modeSelect && modeSelect.value) || "short";
+    const response = await fetch(`/api/video?url=${encodeURIComponent(url)}&lang=${lang}&mode=${mode}`);
     const data = await response.json();
 
     if (!response.ok) {
@@ -603,7 +790,7 @@ function renderVideo(data, originalUrl) {
   resultDiv.innerHTML = "";
 
   const card = document.createElement("div");
-  card.className = "video-card";
+  card.className = "video-card fade-in";
   if (data.thumbnail) {
     const img = document.createElement("img");
     img.src = data.thumbnail;
@@ -632,23 +819,58 @@ function renderVideo(data, originalUrl) {
   card.appendChild(meta);
   resultDiv.appendChild(card);
 
-  // AI tahlil (Gemini)
+  // AI tahlil — alohida, download ro'yxatini to'smaydi
   const aiBox = document.createElement("div");
-  aiBox.className = "ai-analysis" + (data.aiAnalysis ? "" : " empty");
-  if (data.aiAnalysis) {
-    const aiTitle = document.createElement("div");
-    aiTitle.className = "ai-analysis-title";
-    aiTitle.innerHTML = "✨ AI tahlil (Gemini)";
-    aiBox.appendChild(aiTitle);
-    const aiText = document.createElement("div");
-    aiText.textContent = data.aiAnalysis;
-    aiBox.appendChild(aiText);
-  } else {
-    aiBox.textContent = data.aiError
-      ? "AI xato: " + data.aiError
-      : "AI tahlil hozircha mavjud emas (GEMINI_API_KEY tekshiring)";
-  }
+  aiBox.className = "ai-analysis fade-in";
+  aiBox.innerHTML = `<div class="ai-loading"><div class="ai-spinner"></div><span>AI tahlil yuklanmoqda...</span></div>`;
   resultDiv.appendChild(aiBox);
+
+  // async AI
+  (async () => {
+    try {
+      const lang = (langSelect && langSelect.value) || "uz";
+      const mode = (modeSelect && modeSelect.value) || "short";
+      const src = originalUrl || "";
+      const res = await fetch(`/api/analyze?url=${encodeURIComponent(src)}&lang=${lang}&mode=${mode}`);
+      const j = await res.json();
+      if (!res.ok) {
+        aiBox.className = "ai-analysis empty fade-in";
+        aiBox.textContent = "AI xato: " + (j.error || "noma'lum");
+        mountChat(src, null);
+        return;
+      }
+      const text = j.analysis;
+      aiBox.innerHTML = "";
+      aiBox.className = "ai-analysis fade-in";
+      const aiTitle = document.createElement("div");
+      aiTitle.className = "ai-analysis-title";
+      aiTitle.innerHTML = `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12l2.5 2.5L16 9"/></svg> AI tahlil`;
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "copy-btn";
+      copyBtn.textContent = "Nusxa";
+      copyBtn.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          copyBtn.textContent = "Nusxa olindi";
+          setTimeout(() => (copyBtn.textContent = "Nusxa"), 1500);
+        } catch { copyBtn.textContent = "Xato"; }
+      };
+      aiTitle.appendChild(copyBtn);
+      aiBox.appendChild(aiTitle);
+      const aiText = document.createElement("div");
+      aiText.textContent = text;
+      aiBox.appendChild(aiText);
+      // chat after analysis
+      const oldChat = resultDiv.querySelector(".chat-box");
+      if (oldChat) oldChat.remove();
+      mountChat(src, text);
+    } catch (e) {
+      aiBox.className = "ai-analysis empty fade-in";
+      aiBox.textContent = "AI tarmoq xatosi";
+      mountChat(originalUrl || "", null);
+    }
+  })();
 
   // YouTube description (metadata)
   if (data.description) {
@@ -670,13 +892,31 @@ function renderVideo(data, originalUrl) {
     const a = document.createElement("button");
     a.type = "button";
     a.className = "audio-btn";
-    a.innerHTML = "🎵&nbsp; Faqat audio yuklab olish";
+    a.innerHTML = `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> Faqat audio yuklab olish`;
     a.onclick = () => forceDownload(audioOnly.url, `${safeTitle}.${audioOnly.extension || "m4a"}`, a);
     resultDiv.appendChild(a);
   }
 
   const videoItems = data.items.filter((i) => i.extension !== "mp3");
   if (videoItems.length) {
+    // Eng yaxshi format (eng yuqori sifat + audio)
+    const ranked = [...videoItems].sort((a, b) => {
+      const qa = parseInt(String(a.quality || "0"), 10) || 0;
+      const qb = parseInt(String(b.quality || "0"), 10) || 0;
+      if (qb !== qa) return qb - qa;
+      return (b.hasAudio === false ? 0 : 1) - (a.hasAudio === false ? 0 : 1);
+    });
+    const best = ranked.find((i) => i.hasAudio !== false) || ranked[0];
+    if (best) {
+      const bestBtn = document.createElement("button");
+      bestBtn.type = "button";
+      bestBtn.className = "best-btn";
+      const sz = formatSize(best.size);
+      bestBtn.innerHTML = `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Eng yaxshi: ${best.quality || "HD"} ${best.extension || "mp4"}${sz ? " · " + sz : ""}`;
+      bestBtn.onclick = () => forceDownload(best.url, `${safeTitle}_${best.quality || "best"}.${best.extension || "mp4"}`, bestBtn);
+      resultDiv.appendChild(bestBtn);
+    }
+
     const label = document.createElement("div");
     label.className = "section-label";
     label.textContent = "VIDEO FORMATLAR";
@@ -684,10 +924,7 @@ function renderVideo(data, originalUrl) {
     videoItems.forEach((item) => resultDiv.appendChild(makeQualityLink(item, safeTitle)));
   }
 
-  // Video bo'yicha suhbat
-  if (originalUrl) {
-    mountChat(originalUrl, data.aiAnalysis || null);
-  }
+  // Chat AI tahlildan keyin ochiladi (yuqorida async)
 }
 
 function mountChat(videoUrl, initialAnalysis) {
@@ -699,7 +936,7 @@ function mountChat(videoUrl, initialAnalysis) {
   const box = document.createElement("div");
   box.className = "chat-box";
   box.innerHTML = `
-    <div class="chat-header">💬 Video bo'yicha suhbat</div>
+    <div class="chat-header"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg> Video bo'yicha suhbat</div>
     <div class="chat-messages" id="chatMessages"></div>
     <div class="chat-input-row">
       <input type="text" id="chatInput" placeholder="Video haqida savol yozing..." autocomplete="off">
@@ -775,16 +1012,43 @@ function mountChat(videoUrl, initialAnalysis) {
   });
 }
 
+function formatSize(size) {
+  if (size == null || size === "") return null;
+  if (typeof size === "string" && /mb|kb|gb/i.test(size)) return size;
+  const n = Number(size);
+  if (!n || n < 0) return null;
+  if (n < 1024) return n + " B";
+  if (n < 1024 * 1024) return (n / 1024).toFixed(0) + " KB";
+  return (n / (1024 * 1024)).toFixed(1) + " MB";
+}
+
 function makeQualityLink(item, safeTitle) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "quality-item";
   const left = document.createElement("span");
   left.textContent = item.quality || "N/A";
-  const right = document.createElement("span");
-  right.className = "ext";
-  right.textContent = item.extension || "?";
   btn.appendChild(left);
+
+  const right = document.createElement("span");
+  right.className = "meta-right";
+  if (item.hasAudio === false) {
+    const badge = document.createElement("span");
+    badge.className = "badge-noaudio";
+    badge.textContent = "no audio";
+    right.appendChild(badge);
+  }
+  const sz = formatSize(item.size);
+  if (sz) {
+    const s = document.createElement("span");
+    s.className = "size-label";
+    s.textContent = sz;
+    right.appendChild(s);
+  }
+  const ext = document.createElement("span");
+  ext.className = "ext";
+  ext.textContent = item.extension || "?";
+  right.appendChild(ext);
   btn.appendChild(right);
 
   const filename = `${safeTitle || "video"}_${item.quality || "video"}.${item.extension || "mp4"}`;
@@ -795,8 +1059,10 @@ function makeQualityLink(item, safeTitle) {
 function setBtnProgress(btn, text) {
   if (!btn) return;
   if (btn.classList.contains("quality-item")) {
-    const right = btn.querySelector("span:last-child");
-    if (right) right.textContent = text;
+    const ext = btn.querySelector(".ext") || btn.querySelector("span:last-child");
+    if (ext) ext.textContent = text;
+  } else if (btn.classList.contains("best-btn") || btn.classList.contains("audio-btn")) {
+    btn.textContent = text;
   } else {
     btn.textContent = text;
   }
@@ -804,6 +1070,11 @@ function setBtnProgress(btn, text) {
 
 function forceDownload(url, filename, btn) {
   if (!url) return;
+  if (downloadBusy) {
+    alert("Boshqa yuklash tugaguncha kuting");
+    return;
+  }
+  downloadBusy = true;
   const original = btn ? btn.innerHTML : null;
   if (btn) {
     btn.disabled = true;
@@ -842,7 +1113,10 @@ function forceDownload(url, filename, btn) {
         setTimeout(() => {
           btn.disabled = false;
           if (original) btn.innerHTML = original;
+          downloadBusy = false;
         }, 600);
+      } else {
+        downloadBusy = false;
       }
     } else {
       // HTTP xato — fallback
@@ -872,7 +1146,10 @@ function fallbackOpen(url, filename, btn, original) {
     setTimeout(() => {
       btn.disabled = false;
       if (original) btn.innerHTML = original;
+      downloadBusy = false;
     }, 800);
+  } else {
+    downloadBusy = false;
   }
 }
 
@@ -1006,7 +1283,7 @@ async function handleBatch() {
       const data = await response.json();
       if (response.ok && data.type === "video") {
         const card = document.createElement("div");
-        card.className = "video-card";
+        card.className = "video-card fade-in";
         const meta = document.createElement("div");
         const title = document.createElement("div");
         title.className = "video-title";
