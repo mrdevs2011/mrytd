@@ -139,7 +139,7 @@
   input[type="text"]:focus {
     outline: none;
     border-color: var(--primary);
-    background: #fff;
+    background: var(--card);
   }
   input[type="text"]::placeholder { color: #A8B7CC; }
 
@@ -189,7 +189,7 @@
     display: none;
   }
   textarea.show { display: block; }
-  textarea:focus { outline: none; border-color: var(--primary); background: #fff; }
+  textarea:focus { outline: none; border-color: var(--primary); background: var(--card); }
 
   /* Skeleton */
   .skeleton { margin-top: 16px; }
@@ -255,9 +255,9 @@
   .ai-analysis {
     margin-top: 12px;
     padding: 16px;
-    background: linear-gradient(135deg, #EEF6FF 0%, #F5F0FF 100%);
+    background: var(--primary-light);
     border-radius: 12px;
-    border: 1.5px solid #D6E8FF;
+    border: 1.5px solid var(--border);
     font-size: 13.5px;
     line-height: 1.6;
     color: var(--text);
@@ -286,6 +286,48 @@
     --error: #F87171;
     --error-bg: #3F1D1D;
   }
+  body.dark input,
+  body.dark textarea,
+  body.dark select {
+    background: var(--bg) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+  }
+  body.dark input:focus,
+  body.dark textarea:focus,
+  body.dark select:focus {
+    background: var(--card) !important;
+  }
+  body.dark .ai-analysis {
+    background: #1A2740;
+    border-color: #334155;
+    color: var(--text);
+  }
+  body.dark .chat-box,
+  body.dark .chat-header,
+  body.dark .chat-messages {
+    background: var(--card);
+    color: var(--text);
+  }
+  body.dark .chat-header {
+    background: #1A2740;
+    border-color: var(--border);
+  }
+  body.dark .chat-msg.bot {
+    background: var(--bg);
+    color: var(--text);
+    border-color: var(--border);
+  }
+  body.dark .copy-btn {
+    color: var(--primary);
+    border-color: var(--border);
+  }
+  body.dark .skeleton .skel-line,
+  body.dark .skel-line {
+    background: linear-gradient(90deg, #334155 25%, #1E293B 50%, #334155 75%);
+    background-size: 200% 100%;
+  }
+
   .top-bar {
     display: flex;
     justify-content: flex-end;
@@ -436,7 +478,7 @@
   .chat-input-row input:focus {
     outline: none;
     border-color: var(--primary);
-    background: #fff;
+    background: var(--card);
   }
   .chat-input-row button {
     padding: 12px 16px;
