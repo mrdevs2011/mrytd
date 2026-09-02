@@ -410,12 +410,14 @@
 
   /* Chat */
   .chat-box {
-    margin-top: 16px;
+    margin-top: 8px;
     background: var(--card);
-    border-radius: var(--radius);
+    border-radius: 12px;
     border: 1.5px solid var(--border);
     overflow: hidden;
-    box-shadow: 0 4px 20px rgba(30,41,59,0.06);
+  }
+  .ai-analysis + .chat-box {
+    margin-top: 8px;
   }
   .chat-header {
     padding: 12px 16px;
@@ -712,6 +714,76 @@ const historyBox = document.getElementById("historyBox");
 const historyList = document.getElementById("historyList");
 
 const HISTORY_KEY = "ytdmr_history";
+const AI_CACHE_KEY = "ytdmr_ai_cache";
+const CHAT_CACHE_KEY = "ytdmr_chat_cache";
+const AI_CACHE_MAX = 40;
+
+function getVideoIdFromUrl(url) {
+  if (!url) return null;
+  try {
+    if (url.includes("shorts/")) return url.split("shorts/")[1].split(/[?&]/)[0];
+    if (url.includes("youtu.be/")) return url.split("youtu.be/")[1].split(/[?&]/)[0];
+    if (url.includes("watch?v=")) return url.split("watch?v=")[1].split("&")[0];
+    if (url.includes("/embed/")) return url.split("/embed/")[1].split(/[?&]/)[0];
+  } catch (e) {}
+  return null;
+}
+
+function aiCacheKey(videoId, lang, mode) {
+  return `${videoId}|${lang || "uz"}|${mode || "short"}`;
+}
+
+function loadAiCache() {
+  try { return JSON.parse(localStorage.getItem(AI_CACHE_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function saveAiCache(map) {
+  const keys = Object.keys(map);
+  if (keys.length > AI_CACHE_MAX) {
+    // eng eski yozuvlarni o'chirish
+    const sorted = keys.sort((a, b) => (map[a].ts || 0) - (map[b].ts || 0));
+    sorted.slice(0, keys.length - AI_CACHE_MAX).forEach((k) => delete map[k]);
+  }
+  localStorage.setItem(AI_CACHE_KEY, JSON.stringify(map));
+}
+
+function getCachedAnalysis(videoId, lang, mode) {
+  if (!videoId) return null;
+  const map = loadAiCache();
+  const entry = map[aiCacheKey(videoId, lang, mode)];
+  return entry && entry.text ? entry.text : null;
+}
+
+function setCachedAnalysis(videoId, lang, mode, text) {
+  if (!videoId || !text) return;
+  const map = loadAiCache();
+  map[aiCacheKey(videoId, lang, mode)] = { text, ts: Date.now() };
+  saveAiCache(map);
+}
+
+function loadChatCache(videoId) {
+  if (!videoId) return [];
+  try {
+    const all = JSON.parse(localStorage.getItem(CHAT_CACHE_KEY)) || {};
+    return Array.isArray(all[videoId]) ? all[videoId] : [];
+  } catch { return []; }
+}
+
+function saveChatCache(videoId, history) {
+  if (!videoId) return;
+  try {
+    const all = JSON.parse(localStorage.getItem(CHAT_CACHE_KEY)) || {};
+    all[videoId] = (history || []).slice(-20);
+    // limit videos
+    const ids = Object.keys(all);
+    if (ids.length > AI_CACHE_MAX) {
+      ids.slice(0, ids.length - AI_CACHE_MAX).forEach((id) => delete all[id]);
+    }
+    localStorage.setItem(CHAT_CACHE_KEY, JSON.stringify(all));
+  } catch (e) {}
+}
+
 let lastRequestTime = 0;
 const RATE_LIMIT_MS = 1500;
 
@@ -747,8 +819,19 @@ function getHistory() {
   catch { return []; }
 }
 function addToHistory(url, title) {
-  let history = getHistory().filter((h) => h.url !== url);
-  history.unshift({ url, title: title || url, time: Date.now() });
+  const id = getVideoIdFromUrl(url);
+  // Bir xil video (turli URL formatlari ham) — eski yozuv o'chadi, yangisi tepaga
+  let history = getHistory().filter((h) => {
+    if (id && getVideoIdFromUrl(h.url) === id) return false;
+    if (h.url === url) return false;
+    return true;
+  });
+  history.unshift({
+    url,
+    title: title || url,
+    time: Date.now(),
+    videoId: id || null,
+  });
   history = history.slice(0, 5);
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
   renderHistory();
@@ -869,10 +952,19 @@ function renderVideo(data, originalUrl) {
 
   // async AI
   (async () => {
+    const lang = (langSelect && langSelect.value) || "uz";
+    const mode = (modeSelect && modeSelect.value) || "short";
+    const src = originalUrl || "";
+    const videoId = getVideoIdFromUrl(src);
+
+    // Local cache — bir xil video uchun qayta so'rov yo'q
+    const cached = getCachedAnalysis(videoId, lang, mode);
+    if (cached) {
+      renderAiResult(aiBox, cached, src);
+      return;
+    }
+
     try {
-      const lang = (langSelect && langSelect.value) || "uz";
-      const mode = (modeSelect && modeSelect.value) || "short";
-      const src = originalUrl || "";
       const res = await fetch(`/api/analyze?url=${encodeURIComponent(src)}&lang=${lang}&mode=${mode}`);
       const j = await res.json();
       if (!res.ok) {
@@ -882,37 +974,42 @@ function renderVideo(data, originalUrl) {
         return;
       }
       const text = j.analysis;
-      aiBox.innerHTML = "";
-      aiBox.className = "ai-analysis fade-in";
-      const aiTitle = document.createElement("div");
-      aiTitle.className = "ai-analysis-title";
-      aiTitle.innerHTML = `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12l2.5 2.5L16 9"/></svg> AI tahlil`;
-      const copyBtn = document.createElement("button");
-      copyBtn.type = "button";
-      copyBtn.className = "copy-btn";
-      copyBtn.textContent = "Nusxa";
-      copyBtn.onclick = async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          copyBtn.textContent = "Nusxa olindi";
-          setTimeout(() => (copyBtn.textContent = "Nusxa"), 1500);
-        } catch { copyBtn.textContent = "Xato"; }
-      };
-      aiTitle.appendChild(copyBtn);
-      aiBox.appendChild(aiTitle);
-      const aiText = document.createElement("div");
-      aiText.textContent = text;
-      aiBox.appendChild(aiText);
-      // chat after analysis
-      const oldChat = resultDiv.querySelector(".chat-box");
-      if (oldChat) oldChat.remove();
-      mountChat(src, text);
+      setCachedAnalysis(videoId, lang, mode, text);
+      renderAiResult(aiBox, text, src);
     } catch (e) {
       aiBox.className = "ai-analysis empty fade-in";
       aiBox.textContent = "AI tarmoq xatosi";
-      mountChat(originalUrl || "", null);
+      mountChat(src, null);
     }
   })();
+
+  function renderAiResult(aiBox, text, src) {
+    aiBox.innerHTML = "";
+    aiBox.className = "ai-analysis fade-in";
+    const aiTitle = document.createElement("div");
+    aiTitle.className = "ai-analysis-title";
+    aiTitle.innerHTML = `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12l2.5 2.5L16 9"/></svg> AI tahlil`;
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "copy-btn";
+    copyBtn.textContent = "Nusxa";
+    copyBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        copyBtn.textContent = "Nusxa olindi";
+        setTimeout(() => (copyBtn.textContent = "Nusxa"), 1500);
+      } catch { copyBtn.textContent = "Xato"; }
+    };
+    aiTitle.appendChild(copyBtn);
+    aiBox.appendChild(aiTitle);
+    const aiText = document.createElement("div");
+    aiText.textContent = text;
+    aiBox.appendChild(aiText);
+    const oldChat = resultDiv.querySelector(".chat-box");
+    if (oldChat) oldChat.remove();
+    mountChat(src, text);
+  }
+
 
   // YouTube description (metadata)
   if (data.description) {
@@ -969,28 +1066,35 @@ function renderVideo(data, originalUrl) {
 }
 
 function mountChat(videoUrl, initialAnalysis) {
-  const history = [];
-  if (initialAnalysis) {
-    history.push({ role: "assistant", text: initialAnalysis });
-  }
+  const videoId = getVideoIdFromUrl(videoUrl);
+  let history = loadChatCache(videoId);
+
+  const old = resultDiv.querySelector(".chat-box");
+  if (old) old.remove();
 
   const box = document.createElement("div");
-  box.className = "chat-box";
+  box.className = "chat-box fade-in";
   box.innerHTML = `
-    <div class="chat-header"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg> Video bo'yicha suhbat</div>
-    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-messages" id="chatMessages" style="display:none"></div>
     <div class="chat-input-row">
       <input type="text" id="chatInput" placeholder="Video haqida savol yozing..." autocomplete="off">
-      <button id="chatSend">Yuborish</button>
+      <button id="chatSend" type="button">Yuborish</button>
     </div>
   `;
-  resultDiv.appendChild(box);
+
+  const aiBox = resultDiv.querySelector(".ai-analysis");
+  if (aiBox && aiBox.parentNode) {
+    aiBox.insertAdjacentElement("afterend", box);
+  } else {
+    resultDiv.appendChild(box);
+  }
 
   const messagesEl = box.querySelector("#chatMessages");
   const inputEl = box.querySelector("#chatInput");
   const sendBtn = box.querySelector("#chatSend");
 
   function addMsg(role, text) {
+    messagesEl.style.display = "flex";
     const div = document.createElement("div");
     div.className = "chat-msg " + (role === "user" ? "user" : "bot");
     div.textContent = text;
@@ -998,10 +1102,9 @@ function mountChat(videoUrl, initialAnalysis) {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  if (initialAnalysis) {
-    addMsg("assistant", initialAnalysis);
-  } else {
-    addMsg("assistant", "Salom! Video haqida savol bering.");
+  // Eski suhbatni tiklash (xulosa emas — faqat user/bot savol-javob)
+  if (history.length) {
+    history.forEach((h) => addMsg(h.role === "user" ? "user" : "assistant", h.text));
   }
 
   async function send() {
@@ -1012,6 +1115,7 @@ function mountChat(videoUrl, initialAnalysis) {
     sendBtn.disabled = true;
     addMsg("user", msg);
     history.push({ role: "user", text: msg });
+    saveChatCache(videoId, history);
 
     const typing = document.createElement("div");
     typing.className = "chat-msg bot typing";
@@ -1026,7 +1130,7 @@ function mountChat(videoUrl, initialAnalysis) {
         body: JSON.stringify({
           videoUrl,
           message: msg,
-          history: history.slice(0, -1), // oxirgi user xabarsiz (uni message sifatida yubordik)
+          history: history.slice(0, -1),
         }),
       });
       const data = await res.json();
@@ -1037,6 +1141,7 @@ function mountChat(videoUrl, initialAnalysis) {
       } else {
         addMsg("assistant", data.reply);
         history.push({ role: "assistant", text: data.reply });
+        saveChatCache(videoId, history);
       }
     } catch (e) {
       typing.remove();
